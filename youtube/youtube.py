@@ -17,7 +17,7 @@ class Youtube:
         self._channel_id = self.channel['items'][0]['id']  # id канала
         self.channel_title = self.channel['items'][0]['snippet']['title']  # название канала
         self.channel_description = self.channel['items'][0]['snippet']['description']  # описание канала
-        self.channel_link = 'https://www.youtube.com/' + self.channel_id  # ссылка на канал
+        self.channel_link = 'https://www.youtube.com/channel/' + self.channel_id  # ссылка на канал
         self.subscriber_count = self.channel['items'][0]['statistics']['subscriberCount']  # количество подписчиков
         self.video_count = self.channel['items'][0]['statistics']['videoCount']  # количество видео
         self.view_count = self.channel['items'][0]['statistics']['viewCount']  # общее количество просмотров
