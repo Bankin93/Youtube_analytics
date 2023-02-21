@@ -18,9 +18,25 @@ class Youtube:
         self.channel_title = self.channel['items'][0]['snippet']['title']  # название канала
         self.channel_description = self.channel['items'][0]['snippet']['description']  # описание канала
         self.channel_link = 'https://www.youtube.com/channel/' + self.channel_id  # ссылка на канал
-        self.subscriber_count = self.channel['items'][0]['statistics']['subscriberCount']  # количество подписчиков
-        self.video_count = self.channel['items'][0]['statistics']['videoCount']  # количество видео
-        self.view_count = self.channel['items'][0]['statistics']['viewCount']  # общее количество просмотров
+        self.subscriber_count = int(self.channel['items'][0]['statistics']['subscriberCount'])  # количество подписчиков
+        self.video_count = int(self.channel['items'][0]['statistics']['videoCount'])  # количество видео
+        self.view_count = int(self.channel['items'][0]['statistics']['viewCount'])  # общее количество просмотров
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}('{self._channel_id}')"
+
+    def __str__(self):
+        return f'YouTube-канал: {self.channel_title}'
+
+    def __add__(self, other) -> int:
+        """Сложение количества подписчиков каналов"""
+        if isinstance(other, Youtube):
+            return self.subscriber_count + other.subscriber_count
+
+    def __gt__(self, other) -> bool:
+        """Сравнение количества подписчиков каналов на больше/меньше"""
+        if isinstance(other, Youtube):
+            return self.subscriber_count > other.subscriber_count
 
     def print_info(self):
         """ Выводим информацию о канале на консоль"""
