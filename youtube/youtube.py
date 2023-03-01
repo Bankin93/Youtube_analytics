@@ -65,3 +65,55 @@ class Youtube:
                 "video_count": self.video_count,
                 "view_count": self.view_count
             }, file, indent=2, ensure_ascii=False)
+
+
+class Video:
+    """Базовый класс Видео"""
+    def __init__(self, video_id):
+        self._video_id = video_id
+
+        youtube = Youtube.get_service()
+        self.video = youtube.videos().list(id=video_id, part='snippet,statistics').execute()  # инфо о видео
+
+        # Инициализация дополнительных атрибутов класса
+        self.video_title = self.video['items'][0]['snippet']['title']  # название видео
+        self.video_views = int(self.video['items'][0]['statistics']['viewCount'])  # количество просмотров
+        self.video_likes = int(self.video['items'][0]['statistics']['likeCount'])  # количество лайков
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}('{self._video_id}')"
+
+    def __str__(self):
+        return f'{self.video_title}'
+
+    def print_info_v(self):
+        """ Выводим информацию о видео на консоль"""
+        print(json.dumps(self.video, indent=2, ensure_ascii=False))
+
+    @property
+    def video_id(self) -> str:
+        """Возвращает id видео"""
+        return self.video_id
+
+
+class PLVideo(Video):
+    """Класс плэйлист видео, наследуемый класса Video"""
+    def __init__(self, video_id, playlist_id):
+        super().__init__(video_id)
+        self.playlist_id = playlist_id
+
+        youtube = Youtube.get_service()
+        self.playlist = youtube.playlists().list(id=self.playlist_id, part='snippet').execute()  # инфо о плэйлисте
+
+        # Инициализация дополнительного атрибута
+        self.playlist_title = self.playlist['items'][0]['snippet']['title']  # название плэйлиста
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}('{self._video_id}', '{self.playlist_id}')"
+
+    def __str__(self):
+        return f"{super().__str__()} ({self.playlist_title})"
+
+    def print_info_pl(self):
+        """Выводим информацию о плэйлисте в консоль"""
+        print(json.dumps(self.playlist, indent=2, ensure_ascii=False))
