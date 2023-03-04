@@ -1,6 +1,8 @@
 import os
 import json
-
+import datetime
+import isodate
+from abc import ABC, abstractmethod
 from googleapiclient.discovery import build
 
 
@@ -117,3 +119,86 @@ class PLVideo(Video):
     def print_info_pl(self):
         """Выводим информацию о плэйлисте в консоль"""
         print(json.dumps(self.playlist, indent=2, ensure_ascii=False))
+
+
+class MixinLog(ABC):
+    """Абстрактный класс миксин, содержайщий абстрактные методы"""
+
+    @abstractmethod
+    def playlist_title(self) -> str:
+        pass
+
+    @abstractmethod
+    def playlist_url(self) -> str:
+        pass
+
+    @abstractmethod
+    def total_duration(self):
+        pass
+
+    @abstractmethod
+    def show_best_video(self):
+        pass
+
+
+class PlayList(MixinLog):
+    def __init__(self, playlist_id):
+        self.playlist_id = playlist_id
+
+        youtube = Youtube.get_service()
+        self.playlist = youtube.playlists().list(id=self.playlist_id, part='snippet').execute()  # инфо о плэйлисте
+        self.playlist_videos = youtube.playlistItems().list(playlistId=self.playlist_id, part='contentDetails',
+                                                            maxResults=50).execute()  # инфо о видео в плэйлисте
+
+        # Доп атрибуты: названия и url плэйлиста
+        self._playlist_title = self.playlist['items'][0]['snippet']['title']
+        self._playlist_url = f'https://www.youtube.com/playlist?list={self.playlist_id}'
+
+    @property
+    def playlist_title(self) -> str:
+        """Название плэйлиста"""
+        return self._playlist_title
+
+    @property
+    def playlist_url(self) -> str:
+        """Ссылка на плэйлист"""
+        return self._playlist_url
+
+    def print_info_playlist_videos(self):
+        """Выводим информацию о видео в плэйлисте в консоль"""
+        print(json.dumps(self.playlist_videos, indent=2, ensure_ascii=False))
+
+    @property
+    def total_duration(self) -> datetime.timedelta:
+        """подсчет суммарной длительности плейлиста"""
+
+        # получаем все id видеороликов из плейлиста
+        video_ids: list[str] = [video['contentDetails']['videoId'] for video in self.playlist_videos['items']]
+
+        youtube = Youtube.get_service()
+        video_response = youtube.videos().list(part='contentDetails,statistics', id=','.join(video_ids)).execute()
+
+        total_duration = datetime.timedelta()
+
+        for video in video_response['items']:
+            # Длительности YouTube-видео представлены в ISO 8601 формате
+            iso_8601_duration = video['contentDetails']['duration']
+            duration = isodate.parse_duration(iso_8601_duration)
+            total_duration += duration
+
+        return total_duration
+
+    def show_best_video(self) -> str:
+        """Возвращает ссылку на самое популярное видео из плейлиста (по количеству лайков)"""
+        video_ids: list[str] = [video['contentDetails']['videoId'] for video in self.playlist_videos['items']]
+        youtube = Youtube.get_service()
+        video_response = youtube.videos().list(part='snippet,statistics', id=','.join(video_ids)).execute()
+
+        best_video = None
+        max_likes = 0
+        for video in video_response['items']:
+            if isinstance(int(video['statistics']['likeCount']), int):
+                if int(video['statistics']['likeCount']) > max_likes:
+                    best_video = video
+                    max_likes = int(video['statistics']['likeCount'])
+        return f'https://youtu.be/{best_video["id"]}'
