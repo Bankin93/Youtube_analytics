@@ -7,11 +7,12 @@ from youtube.youtube import Youtube, Video, PLVideo, PlayList
 #channel.print_info()
 # print(channel.channel_title)
 # print(channel.video_count)
-# print(channel.channel_link)
-# # channel.channel_id = 'Новое название'  # менять не можем
 # print(channel.channel_id)
+# print(channel.channel_link)
+#channel.channel_id = 'Новое название'  # менять не можем
+#print(channel.channel_id)
 # print(Youtube.get_service())
-# channel.to_json('channel.json')
+#channel.to_json('channel.json')
 # print(channel)
 # print(channel_1)
 # print(channel > channel_1)
@@ -26,13 +27,20 @@ from youtube.youtube import Youtube, Video, PLVideo, PlayList
 # video2.print_info_pl()
 # print(video2)
 
-pl = PlayList('PLguYHBi01DWr4bRWc4uaguASmo7lW4GCb')
+# pl = PlayList('PLguYHBi01DWr4bRWc4uaguASmo7lW4GCb')
+# #
+# print(pl.playlist_title)
+# print(pl.playlist_url)
+# #
+# duration = pl.total_duration
+# print(duration)
+# print(type(duration))
+# print(duration.total_seconds())
+# print(pl.show_best_video())
 
-print(pl.playlist_title)
-print(pl.playlist_url)
 
-duration = pl.total_duration
-print(duration)
-print(type(duration))
-print(duration.total_seconds())
-print(pl.show_best_video())
+broken_video = Video('broken_video_id')
+print(broken_video.video_title)
+# #None
+print(broken_video.video_likes)
+# #None

@@ -1,22 +1,20 @@
-import os
 import json
 import datetime
 import isodate
 from abc import ABC, abstractmethod
-from googleapiclient.discovery import build
+
+from youtube.mixin import Mixin
 
 
-class Youtube:
+class Youtube(Mixin):
     """Базовый класс, для работы с API YouTube"""
     def __init__(self, channel_id):
-        self._channel_id = channel_id
+        super().__init__()
 
-        api_key: str = os.environ.get('YOUTUBE_API_KEY')  # Получаем ключ API из переменной окружения
-        youtube = build('youtube', 'v3', developerKey=api_key)  # сервис youtube
-        self.channel = youtube.channels().list(id=channel_id, part='snippet,statistics').execute()  # инфо о канале
+        self.channel = self.get_channel_info(channel_id)  # Получение информации о канале
 
         # Инициализация атрибутов класса
-        self._channel_id = self.channel['items'][0]['id']  # id канала
+        self._channel_id = channel_id  # ID канала
         self.channel_title = self.channel['items'][0]['snippet']['title']  # название канала
         self.channel_description = self.channel['items'][0]['snippet']['description']  # описание канала
         self.channel_link = 'https://www.youtube.com/channel/' + self.channel_id  # ссылка на канал
@@ -42,18 +40,12 @@ class Youtube:
 
     def print_info(self):
         """ Выводим информацию о канале на консоль"""
-        print(json.dumps(self.channel, indent=2, ensure_ascii=False))
+        print(super().print_info(self.channel))
 
     @property
     def channel_id(self) -> str:
         """возвращает id канала"""
         return self._channel_id
-
-    @staticmethod
-    def get_service():
-        """возвращает объект для работы с API ютуба"""
-        api_key: str = os.environ.get('YOUTUBE_API_KEY')
-        return build('youtube', 'v3', developerKey=api_key)
 
     def to_json(self, filename) -> None:
         """сохраняет информацию по каналу, хранящуюся в атрибутах экземпляра класса Youtube, в json-файл"""
@@ -69,18 +61,23 @@ class Youtube:
             }, file, indent=2, ensure_ascii=False)
 
 
-class Video:
+class Video(Mixin):
     """Базовый класс Видео"""
     def __init__(self, video_id):
-        self._video_id = video_id
+        super().__init__()
+        try:
+            self._video_id = video_id
+            self.video = self.get_video_info(video_id)  # получение информации о видео
 
-        youtube = Youtube.get_service()
-        self.video = youtube.videos().list(id=video_id, part='snippet,statistics').execute()  # инфо о видео
+            # Инициализация дополнительных атрибутов класса
+            self.video_title = self.video['items'][0]['snippet']['title']  # название видео
+            self.video_views = int(self.video['items'][0]['statistics']['viewCount'])  # количество просмотров
+            self.video_likes = int(self.video['items'][0]['statistics']['likeCount'])  # количество лайков
 
-        # Инициализация дополнительных атрибутов класса
-        self.video_title = self.video['items'][0]['snippet']['title']  # название видео
-        self.video_views = int(self.video['items'][0]['statistics']['viewCount'])  # количество просмотров
-        self.video_likes = int(self.video['items'][0]['statistics']['likeCount'])  # количество лайков
+        except IndexError:
+            self.video_title = None
+            self.video_views = None
+            self.video_likes = None
 
     def __repr__(self):
         return f"{self.__class__.__name__}('{self._video_id}')"
@@ -103,9 +100,7 @@ class PLVideo(Video):
     def __init__(self, video_id, playlist_id):
         super().__init__(video_id)
         self.playlist_id = playlist_id
-
-        youtube = Youtube.get_service()
-        self.playlist = youtube.playlists().list(id=self.playlist_id, part='snippet').execute()  # инфо о плэйлисте
+        self.playlist = self.get_playlist_info(playlist_id)  # получение информации о плэйлисте
 
         # Инициализация дополнительного атрибута
         self.playlist_title = self.playlist['items'][0]['snippet']['title']  # название плэйлиста
@@ -121,8 +116,8 @@ class PLVideo(Video):
         print(json.dumps(self.playlist, indent=2, ensure_ascii=False))
 
 
-class MixinLog(ABC):
-    """Абстрактный класс миксин, содержайщий абстрактные методы"""
+class AbstractLog(ABC):
+    """Абстрактный класс AbstractLog, содержайщий абстрактные методы"""
 
     @abstractmethod
     def playlist_title(self) -> str:
@@ -133,26 +128,28 @@ class MixinLog(ABC):
         pass
 
     @abstractmethod
-    def total_duration(self):
+    def total_duration(self) -> datetime.timedelta:
         pass
 
     @abstractmethod
-    def show_best_video(self):
+    def show_best_video(self) -> str:
         pass
 
 
-class PlayList(MixinLog):
+class PlayList(AbstractLog, Mixin):
+    """Класс плэйлист, наследуемый от класс AbstractLog и Mixin"""
     def __init__(self, playlist_id):
+        super().__init__()
         self.playlist_id = playlist_id
 
-        youtube = Youtube.get_service()
-        self.playlist = youtube.playlists().list(id=self.playlist_id, part='snippet').execute()  # инфо о плэйлисте
-        self.playlist_videos = youtube.playlistItems().list(playlistId=self.playlist_id, part='contentDetails',
-                                                            maxResults=50).execute()  # инфо о видео в плэйлисте
+        self.playlist = self.get_playlist_info(playlist_id)  # получение информации о плэйлисте
+        self.playlist_videos = self.get_playlist_videos(playlist_id)  # список видео
+        self.video_ids = self.get_video_ids(playlist_id)  # список видео ID
+        self.video_response = self.get_video_info_by_id(self.video_ids)  # получение информации о видео
 
         # Доп атрибуты: названия и url плэйлиста
-        self._playlist_title = self.playlist['items'][0]['snippet']['title']
-        self._playlist_url = f'https://www.youtube.com/playlist?list={self.playlist_id}'
+        self._playlist_title = self.playlist['items'][0]['snippet']['title']  # название плэйлиста
+        self._playlist_url = f'https://www.youtube.com/playlist?list={self.playlist_id}'  # ссылка на плэйлист
 
     @property
     def playlist_title(self) -> str:
@@ -164,23 +161,16 @@ class PlayList(MixinLog):
         """Ссылка на плэйлист"""
         return self._playlist_url
 
-    def print_info_playlist_videos(self):
+    def print_info_playlist_videos(self) -> json:
         """Выводим информацию о видео в плэйлисте в консоль"""
         print(json.dumps(self.playlist_videos, indent=2, ensure_ascii=False))
 
     @property
     def total_duration(self) -> datetime.timedelta:
         """подсчет суммарной длительности плейлиста"""
-
-        # получаем все id видеороликов из плейлиста
-        video_ids: list[str] = [video['contentDetails']['videoId'] for video in self.playlist_videos['items']]
-
-        youtube = Youtube.get_service()
-        video_response = youtube.videos().list(part='contentDetails,statistics', id=','.join(video_ids)).execute()
-
         total_duration = datetime.timedelta()
 
-        for video in video_response['items']:
+        for video in self.video_response['items']:
             # Длительности YouTube-видео представлены в ISO 8601 формате
             iso_8601_duration = video['contentDetails']['duration']
             duration = isodate.parse_duration(iso_8601_duration)
@@ -190,13 +180,10 @@ class PlayList(MixinLog):
 
     def show_best_video(self) -> str:
         """Возвращает ссылку на самое популярное видео из плейлиста (по количеству лайков)"""
-        video_ids: list[str] = [video['contentDetails']['videoId'] for video in self.playlist_videos['items']]
-        youtube = Youtube.get_service()
-        video_response = youtube.videos().list(part='snippet,statistics', id=','.join(video_ids)).execute()
 
         best_video = None
         max_likes = 0
-        for video in video_response['items']:
+        for video in self.video_response['items']:
             if isinstance(int(video['statistics']['likeCount']), int):
                 if int(video['statistics']['likeCount']) > max_likes:
                     best_video = video
